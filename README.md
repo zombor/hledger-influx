@@ -14,3 +14,9 @@ hledger bal --infer-market-prices -V -X=$ not:tag:clopen -O csv -DH --transpose 
 
 1. This program expects a single currency/commodity. In the example above, it converts everything to USD with `-X=$` (along with `--infer-market-prices`).
 2. It only works with USD/`$` currency symbols.
+
+## Grafana Dashboard
+
+JSON for a basic grafana dashboard lives in `grafana/` directory.
+
+![](grafana/grafana.png)
