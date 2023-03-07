@@ -2,77 +2,44 @@ package main
 
 import (
 	"bufio"
-	"encoding/csv"
+	"context"
+	"flag"
 	"fmt"
-	"io"
+	"log"
 	"os"
-	"strconv"
-	"strings"
-	"time"
 
-	"github.com/influxdata/line-protocol/v2/lineprotocol"
+	_ "embed"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/zombor/hledger-influx/pkg/hledger-influx"
 )
 
+//go:embed VERSION.txt
+var version string
+
 func main() {
-	var (
-		header []string
-		enc    lineprotocol.Encoder
-	)
+	fs := flag.NewFlagSet("hledger-influx", flag.ContinueOnError)
 
-	r := csv.NewReader(bufio.NewReader(os.Stdin))
-
-	enc.SetPrecision(lineprotocol.Microsecond)
-
-	for {
-		var (
-			t time.Time
-			v float64
-		)
-
-		record, err := r.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			panic(err)
-		}
-
-		if header == nil {
-			header = record
-			continue
-		}
-
-		t, err = time.Parse("2006-01-02", record[0])
-		if err != nil {
-			panic(err)
-		}
-
-		for i := 0; i < len(header)-1; i++ {
-			if i == 0 {
-				continue // date
-			}
-
-			if string(record[i][0]) == "$" {
-				v, err = strconv.ParseFloat(strings.Replace(record[i][1:], ",", "", -1), 64)
-				if err != nil {
-					panic(err)
-				}
-			} else {
-				v, err = strconv.ParseFloat(strings.Replace(record[i], ",", "", -1), 64)
-				if err != nil {
-					panic(err)
-				}
-			}
-
-			enc.StartLine("account")
-			enc.AddTag("name", header[i])
-			enc.AddField("balance", lineprotocol.MustNewValue(v))
-			enc.EndLine(t)
-			if err := enc.Err(); err != nil {
-				panic(fmt.Errorf("encoding error: %v", err))
-			}
-		}
+	version := &ffcli.Command{
+		Name:       "version",
+		ShortUsage: "hledger-influx version [<arg> ...]",
+		ShortHelp:  "Prints the program version.",
+		Exec:       func(context.Context, []string) error { fmt.Println(version); return nil },
 	}
 
-	fmt.Printf("%s", enc.Bytes())
+	root := &ffcli.Command{
+		ShortUsage: "hledger-influx",
+		ShortHelp:  "Converts an hledger csv file of account balances to influxdb line format",
+		LongHelp: `Converts an hledger csv file of account balances to influxdb line format.
+Use the 'bal', '-O csv', and '-DH' options of 'hledger bal' to print a csv report in the right format for this program:
+hledger bal --infer-market-prices -V -X=$ not:tag:clopen -O csv -DH --transpose | hledger-influx | influx write ...
+		`,
+		Subcommands: []*ffcli.Command{version},
+		FlagSet:     fs,
+		Exec:        func(context.Context, []string) error { return hledger.Convert(bufio.NewReader(os.Stdin), os.Stdout) },
+	}
+
+	if err := root.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
 }
