@@ -1,5 +1,11 @@
 # hledger-influx
 
+> **⚠️ This repository has moved.** Active development now lives at
+> **<https://git.zombor.net/zombor/hledger-influx>**. This GitHub repository
+> is archived and will not receive further updates. Please file issues,
+> open pull requests, and pull container images
+> (`git.zombor.net/zombor/hledger-influx`) at the new location.
+
 This is a project for exporting an `hledger` ledger into influxdb line format.
 
 ## Usage
